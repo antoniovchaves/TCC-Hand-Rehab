@@ -69,6 +69,8 @@ public class ExerciseDetector : MonoBehaviour {
     float WRIST_CURL_LOWER_TRESHHOLD = -25f;
     float WRIST_CURL_UPPER_TRESHHOLD = 40f;
 
+    private Strength _strength;
+
 
     // Start is called before the first frame update
     void Start() {
@@ -79,49 +81,61 @@ public class ExerciseDetector : MonoBehaviour {
         shield.SetActive(false);
         currentExercise = new Exercise();
         availableMagics = new List<ExerciseType>();
+        _strength = GameObject.Find("Strength")?.GetComponent<Strength>();
+
+        if (_strength != null)
+        {
+            StartCoroutine(_strength.GetMyoData("http://localhost:8000/arm"));
+        }
+        else
+        {
+            Debug.LogError("Componente 'Strength' não encontrado.");
+        }
+
+        Debug.Log("ExerciseDetectorStarted");
     }
 
     // Update is called once per frame
     void Update() {
-        Hand rightHand = null;
-        Hand leftHand = null;
+        Hand supportHand = null;
+        Hand magicHand = null;
         Frame frame = provider.CurrentFrame;
 
         if (frame.Hands.Capacity > 0) {
             foreach (Hand h in frame.Hands) {
                 //Debug.Log(h);
                 if (h.IsLeft)
-                    leftHand = h;
+                    magicHand = h;
                 if (h.IsRight)
-                    rightHand = h;
+                    supportHand = h;
             }
         }
 
-        if(leftHand != null) {
+        if(magicHand != null) {
             if (currentExercise.hasStarted && !currentExercise.hasFinished) {
                 switch (currentExercise.type) {
                     case ExerciseType.FIST:
-                        ProcessFistExercise(leftHand);
+                        ProcessFistExercise(magicHand);
                         break;
                     case ExerciseType.ROTATION:
-                        ProcessRotationExercise(leftHand);
+                        ProcessRotationExercise(magicHand);
                         break;
                     case ExerciseType.WRIST_CURL:
-                        ProcessWristCurlExercise(leftHand);
+                        ProcessWristCurlExercise(magicHand);
                         break;
                     case ExerciseType.FINGER_CURL:
-                        ProcessFingerCurlExercise(leftHand);
+                        ProcessFingerCurlExercise(magicHand);
                         break;
                 }
             }
             else {
                 currentExercise.ResetExercise();
-                ProcessExercises(leftHand);
+                ProcessExercises(magicHand);
             }
         }
 
         // Cancel magic
-        if(rightHand != null && currentExercise!= null && currentExercise.hasStarted && IsHandClosed(rightHand) && blast == null) {
+        if(supportHand != null && currentExercise!= null && currentExercise.hasStarted && IsHandClosed(supportHand) && blast == null) {
             CancelMagic();
         }
 

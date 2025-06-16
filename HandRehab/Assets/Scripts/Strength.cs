@@ -16,6 +16,7 @@ public class Strength : MonoBehaviour
     // Start is called before the first frame update
     protected virtual void Start()
     {
+        Debug.Log("Strength ready");
         // Fallback hp
         strength = strength == 0 ? 1 : strength;
         // maxStength = maxStength == 0 ? 1 : maxStength;
@@ -80,6 +81,12 @@ public class Strength : MonoBehaviour
                 node["data"]["strength"] < 3)
             {
                 setStrength(node["data"]["strength"]);
+            }
+
+            if (node["data"] != null && 
+                node["data"]["arm"] != null)
+            {
+                Debug.Log("Arm: " + node["data"]["arm"]);
             }
         }
     }
