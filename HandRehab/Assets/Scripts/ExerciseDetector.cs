@@ -43,7 +43,7 @@ public class Exercise {
     }
 }
 
-public class ExerciseDetector : MonoBehaviour {
+public class ExerciseDetector : MyoDataManager {
     public GameObject playerRig;
     public GameObject leftHandObject;
     public GameObject aim;
@@ -69,8 +69,6 @@ public class ExerciseDetector : MonoBehaviour {
     float WRIST_CURL_LOWER_TRESHHOLD = -25f;
     float WRIST_CURL_UPPER_TRESHHOLD = 40f;
 
-    private Strength _strength;
-
 
     // Start is called before the first frame update
     void Start() {
@@ -81,16 +79,8 @@ public class ExerciseDetector : MonoBehaviour {
         shield.SetActive(false);
         currentExercise = new Exercise();
         availableMagics = new List<ExerciseType>();
-        _strength = GameObject.Find("Strength")?.GetComponent<Strength>();
-
-        if (_strength != null)
-        {
-            StartCoroutine(_strength.GetMyoData("http://localhost:8000/arm"));
-        }
-        else
-        {
-            Debug.LogError("Componente 'Strength' não encontrado.");
-        }
+        
+        StartCoroutine( GetMyoData("http://localhost:8000/arm") );
 
         Debug.Log("ExerciseDetectorStarted");
     }
