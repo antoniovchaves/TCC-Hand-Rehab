@@ -91,13 +91,24 @@ public class ExerciseDetector : MyoDataManager {
         Hand magicHand = null;
         Frame frame = provider.CurrentFrame;
 
-        if (frame.Hands.Capacity > 0) {
+         if (frame.Hands.Capacity > 0) {
             foreach (Hand h in frame.Hands) {
-                //Debug.Log(h);
-                if (h.IsLeft)
-                    magicHand = h;
-                if (h.IsRight)
-                    supportHand = h;
+
+                if (h.IsLeft) {
+                    if (arm == "left") {
+                        magicHand = h;
+                    } else if (arm == "right") {
+                        supportHand = h;
+                    }
+                }
+                    
+                if (h.IsRight) {
+                    if (arm == "right") {
+                        magicHand = h;
+                    } else if (arm == "left") {
+                        supportHand = h;
+                    }
+                }
             }
         }
 
