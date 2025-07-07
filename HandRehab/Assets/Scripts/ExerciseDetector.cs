@@ -9,32 +9,38 @@ public enum ExerciseType {
     FIST,
     WRIST_CURL,
     FINGER_CURL,
+    WAVE_RELEASE,
     UNDEFINED
 }
 
-public class Exercise {
+public class Exercise
+{
     public ExerciseType type;
     public bool hasStarted;
     public bool hasFinished;
     public float timeStarted;
     public float timeFinished;
 
-    public Exercise() {
+    public Exercise()
+    {
         ResetExercise();
     }
 
-    public void StartExercise(ExerciseType type) {
+    public void StartExercise(ExerciseType type)
+    {
         this.type = type;
         this.hasStarted = true;
         this.timeStarted = Time.time;
     }
 
-    public void FinishExercise() {
+    public void FinishExercise()
+    {
         this.hasFinished = true;
         this.timeFinished = Time.time;
     }
 
-    public void ResetExercise() {
+    public void ResetExercise()
+    {
         this.type = ExerciseType.UNDEFINED;
         this.hasStarted = false;
         this.hasFinished = false;
@@ -43,7 +49,8 @@ public class Exercise {
     }
 }
 
-public class ExerciseDetector : MonoBehaviour {
+public class ExerciseDetector : MonoBehaviour
+{
     public GameObject playerRig;
     public GameObject leftHandObject;
     public GameObject aim;
@@ -51,6 +58,7 @@ public class ExerciseDetector : MonoBehaviour {
     public GameObject chainLightning;
     public GameObject boulder;
     public GameObject kamehameha;
+    public GameObject wave;
     public Camera camera;
     public static List<ExerciseType> availableMagics;
 
@@ -69,9 +77,8 @@ public class ExerciseDetector : MonoBehaviour {
     float WRIST_CURL_LOWER_TRESHHOLD = -25f;
     float WRIST_CURL_UPPER_TRESHHOLD = 40f;
 
-
-    // Start is called before the first frame update
-    void Start() {
+    void Start()
+    {
         provider = FindObjectOfType<LeapProvider>();
         aim = GameObject.Instantiate(aim);
         aim.SetActive(false);
@@ -81,15 +88,16 @@ public class ExerciseDetector : MonoBehaviour {
         availableMagics = new List<ExerciseType>();
     }
 
-    // Update is called once per frame
-    void Update() {
+    void Update()
+    {
         Hand rightHand = null;
         Hand leftHand = null;
         Frame frame = provider.CurrentFrame;
 
-        if (frame.Hands.Capacity > 0) {
-            foreach (Hand h in frame.Hands) {
-                //Debug.Log(h);
+        if (frame.Hands.Capacity > 0)
+        {
+            foreach (Hand h in frame.Hands)
+            {
                 if (h.IsLeft)
                     leftHand = h;
                 if (h.IsRight)
@@ -97,9 +105,24 @@ public class ExerciseDetector : MonoBehaviour {
             }
         }
 
-        if(leftHand != null) {
-            if (currentExercise.hasStarted && !currentExercise.hasFinished) {
-                switch (currentExercise.type) {
+        if (leftHand != null && rightHand != null)
+        {
+
+            Vector3 leftDir = leftHand.PalmNormal.ToVector3();
+            Vector3 rightDir = rightHand.PalmNormal.ToVector3();
+
+            float leftDot = Vector3.Dot(leftDir, camera.transform.forward);
+            float rightDot = Vector3.Dot(rightDir, camera.transform.forward);
+            float leftBackDot = Vector3.Dot(leftDir, -camera.transform.forward);
+            float rightBackDot = Vector3.Dot(rightDir, -camera.transform.forward);
+
+            Debug.Log($"[DEBUG] LEFT - Open: {IsHandOpened(leftHand)}, Dot: {leftDot:F2}, BackDot: {leftBackDot:F2}");
+            Debug.Log($"[DEBUG] RIGHT - Open: {IsHandOpened(rightHand)}, Dot: {rightDot:F2}, BackDot: {rightBackDot:F2}");
+
+            if (currentExercise.hasStarted && !currentExercise.hasFinished)
+            {
+                switch (currentExercise.type)
+                {
                     case ExerciseType.FIST:
                         ProcessFistExercise(leftHand);
                         break;
@@ -112,32 +135,79 @@ public class ExerciseDetector : MonoBehaviour {
                     case ExerciseType.FINGER_CURL:
                         ProcessFingerCurlExercise(leftHand);
                         break;
+                    case ExerciseType.WAVE_RELEASE:
+                        ProcessWaveReleaseExercise(leftHand, rightHand);
+                        break;
                 }
             }
-            else {
+            else
+            {
                 currentExercise.ResetExercise();
-                ProcessExercises(leftHand);
+                ProcessExercises(leftHand, rightHand);
             }
         }
 
-        // Cancel magic
-        if(rightHand != null && currentExercise!= null && currentExercise.hasStarted && IsHandClosed(rightHand) && blast == null) {
+        /*
+        if (rightHand != null && currentExercise != null && currentExercise.hasStarted && IsHandClosed(rightHand) && blast == null)
+        {
             CancelMagic();
         }
-
+        */
     }
 
-    void CancelMagic() {
+    void CancelMagic()
+    {
         currentExercise.FinishExercise();
         aim?.SetActive(false);
         shield?.SetActive(false);
         if (fingerCurlIndicator != null)
             DestroyImmediate(fingerCurlIndicator);
         var magics = GameObject.FindGameObjectsWithTag("Magic");
-        foreach (var magic in magics) {
+        foreach (var magic in magics)
+        {
             DestroyImmediate(magic);
         }
     }
+
+    void ProcessWaveReleaseExercise(Hand left, Hand right)
+    {
+        bool leftOpen = IsHandOpened(left);
+        bool rightOpen = IsHandOpened(right);
+
+        Vector3 leftDir = left.PalmNormal.ToVector3();
+        Vector3 rightDir = right.PalmNormal.ToVector3();
+
+        float leftDot = Vector3.Dot(leftDir, camera.transform.forward);
+        float rightDot = Vector3.Dot(rightDir, camera.transform.forward);
+        float leftBackDot = Vector3.Dot(leftDir, -camera.transform.forward);
+        float rightBackDot = Vector3.Dot(rightDir, -camera.transform.forward);
+
+        float forwardAvg = (leftDot + rightDot) / 2f;
+        float backAvg = (leftBackDot + rightBackDot) / 2f;
+
+        Debug.Log($"[DEBUG] LEFT Open: {leftOpen}, Dot: {leftDot:F2}, Back: {leftBackDot:F2}");
+        Debug.Log($"[DEBUG] RIGHT Open: {rightOpen}, Dot: {rightDot:F2}, Back: {rightBackDot:F2}");
+        Debug.Log($"[DEBUG] AVG Forward: {forwardAvg:F2} | AVG Back: {backAvg:F2}");
+
+        if (!currentExercise.hasStarted && leftOpen && rightOpen && backAvg > 0.7f )
+        {
+            Debug.Log("[WAVE] Gesto iniciado com palmas voltadas para o jogador.");
+            currentExercise.StartExercise(ExerciseType.WAVE_RELEASE);
+        }
+        else if (currentExercise.hasStarted && leftOpen && rightOpen && forwardAvg > 0.6f)
+        {
+            Debug.Log("[WAVE] Gesto finalizado com costas das mãos voltadas para o jogador.");
+            currentExercise.FinishExercise();
+
+            if (wave != null)
+            {
+                Vector3 spawnPosition = playerRig.transform.position + playerRig.transform.forward * 0.5f;
+                GameObject w = Instantiate(wave, spawnPosition, Quaternion.identity);
+                Destroy(w, 5f);
+            }
+        }
+    }
+
 
     bool IsHandClosed(Hand hand) {
         int fingersGrasping = 0;
@@ -308,17 +378,14 @@ public class ExerciseDetector : MonoBehaviour {
         }
     }
 
-    void ProcessExercises(Hand hand) {
-        if(availableMagics.Contains(ExerciseType.FIST)) ProcessFistExercise(hand);
-        if (!currentExercise.hasStarted) {
-            if (availableMagics.Contains(ExerciseType.ROTATION)) ProcessRotationExercise(hand);
-            if (!currentExercise.hasStarted) {
-                if (availableMagics.Contains(ExerciseType.WRIST_CURL)) ProcessWristCurlExercise(hand);
-                if (!currentExercise.hasStarted) {
-                    if (availableMagics.Contains(ExerciseType.FINGER_CURL)) ProcessFingerCurlExercise(hand);
-                }
-            }
-        }
+    void ProcessExercises(Hand left, Hand right)
+    {
+        if (availableMagics.Contains(ExerciseType.FIST)) ProcessFistExercise(left);
+        if (!currentExercise.hasStarted && availableMagics.Contains(ExerciseType.ROTATION)) ProcessRotationExercise(left);
+        if (!currentExercise.hasStarted && availableMagics.Contains(ExerciseType.WRIST_CURL)) ProcessWristCurlExercise(left);
+        if (!currentExercise.hasStarted && availableMagics.Contains(ExerciseType.FINGER_CURL)) ProcessFingerCurlExercise(left);
+        if (!currentExercise.hasStarted && availableMagics.Contains(ExerciseType.WAVE_RELEASE)) ProcessWaveReleaseExercise(left, right);
+
         Debug.Log(currentExercise.type.ToString());
     }
 }
