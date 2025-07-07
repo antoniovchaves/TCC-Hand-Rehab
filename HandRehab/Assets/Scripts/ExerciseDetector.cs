@@ -74,9 +74,12 @@ public class ExerciseDetector : MonoBehaviour
     bool waveFirstChargeComplete = false;
     bool waveSecondChargeComplete = false;
 
-    public Material wavePhase1Mat;
-    public Material wavePhase2Mat;
-    public Material wavePhase3Mat;
+
+
+    Color phase1Color = new Color(0f, 1f, 1f, 0.4f);   // Ciano translúcido
+    Color phase2Color = new Color(0f, 0.4f, 1f, 0.4f); // Azul translúcido
+    Color phase3Color = new Color(0f, 1f, 0f, 0.4f);   // Verde translúcido
+
 
 
     float GRAB_TRESHHOLD = 0.063f;
@@ -154,6 +157,7 @@ public class ExerciseDetector : MonoBehaviour
         currentExercise.FinishExercise();
         aim?.SetActive(false);
         shield?.SetActive(false);
+        waveChargeEffect?.SetActive(false);
         if (fingerCurlIndicator != null)
             DestroyImmediate(fingerCurlIndicator);
         var magics = GameObject.FindGameObjectsWithTag("Magic");
@@ -193,7 +197,8 @@ public class ExerciseDetector : MonoBehaviour
                 currentExercise.StartExercise(ExerciseType.WAVE_RELEASE);
 
                 waveChargeEffect = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                waveChargeEffect.GetComponent<Renderer>().material.color = Color.cyan;
+                ApplyTransparentColor(waveChargeEffect, phase1Color);
+
                 waveChargeEffect.transform.localScale = Vector3.one * 0.017f;
             }
             else
@@ -207,7 +212,7 @@ public class ExerciseDetector : MonoBehaviour
                 {
                     Debug.Log("[WAVE] Fase 1 completa.");
                     waveFirstChargeComplete = true;
-                    waveChargeEffect.GetComponent<Renderer>().material.color = Color.blue;
+                    ApplyTransparentColor(waveChargeEffect, phase2Color);
                     waveChargeEffect.transform.localScale = Vector3.one * 0.017f; // reinicia para Fase 2
                 }
             }
@@ -225,7 +230,7 @@ public class ExerciseDetector : MonoBehaviour
             {
                 Debug.Log("[WAVE] Fase 2 completa. Pronto para disparar ao juntar as mãos!");
                 waveSecondChargeComplete = true;
-                waveChargeEffect.GetComponent<Renderer>().material.color = Color.green;
+                ApplyTransparentColor(waveChargeEffect, phase3Color);
             }
         }
 
@@ -441,4 +446,26 @@ public class ExerciseDetector : MonoBehaviour
 
         Debug.Log(currentExercise.type.ToString());
     }
+
+    void ApplyTransparentColor(GameObject obj, Color color)
+    {
+        if (obj == null) return;
+
+        Renderer renderer = obj.GetComponent<Renderer>();
+        if (renderer == null) return;
+
+        Material mat = renderer.material;
+        mat.shader = Shader.Find("Standard");
+        mat.SetFloat("_Mode", 3); // Transparent
+        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        mat.SetInt("_ZWrite", 0);
+        mat.DisableKeyword("_ALPHATEST_ON");
+        mat.EnableKeyword("_ALPHABLEND_ON");
+        mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+        mat.renderQueue = 3000;
+
+        mat.color = color;
+    }
+
 }
