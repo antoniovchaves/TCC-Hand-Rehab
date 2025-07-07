@@ -70,6 +70,14 @@ public class ExerciseDetector : MonoBehaviour
     bool fingerCurlFired = false;
     Exercise currentExercise;
     GameObject blast;
+    GameObject waveChargeEffect;
+    bool waveFirstChargeComplete = false;
+    bool waveSecondChargeComplete = false;
+
+    public Material wavePhase1Mat;
+    public Material wavePhase2Mat;
+    public Material wavePhase3Mat;
+
 
     float GRAB_TRESHHOLD = 0.063f;
     float ROTATION_UPPER_TRESHHOLD = 3f;
@@ -107,18 +115,6 @@ public class ExerciseDetector : MonoBehaviour
 
         if (leftHand != null && rightHand != null)
         {
-
-            Vector3 leftDir = leftHand.PalmNormal.ToVector3();
-            Vector3 rightDir = rightHand.PalmNormal.ToVector3();
-
-            float leftDot = Vector3.Dot(leftDir, camera.transform.forward);
-            float rightDot = Vector3.Dot(rightDir, camera.transform.forward);
-            float leftBackDot = Vector3.Dot(leftDir, -camera.transform.forward);
-            float rightBackDot = Vector3.Dot(rightDir, -camera.transform.forward);
-
-            Debug.Log($"[DEBUG] LEFT - Open: {IsHandOpened(leftHand)}, Dot: {leftDot:F2}, BackDot: {leftBackDot:F2}");
-            Debug.Log($"[DEBUG] RIGHT - Open: {IsHandOpened(rightHand)}, Dot: {rightDot:F2}, BackDot: {rightBackDot:F2}");
-
             if (currentExercise.hasStarted && !currentExercise.hasFinished)
             {
                 switch (currentExercise.type)
@@ -147,12 +143,10 @@ public class ExerciseDetector : MonoBehaviour
             }
         }
 
-        /*
         if (rightHand != null && currentExercise != null && currentExercise.hasStarted && IsHandClosed(rightHand) && blast == null)
         {
             CancelMagic();
         }
-        */
     }
 
     void CancelMagic()
@@ -185,18 +179,60 @@ public class ExerciseDetector : MonoBehaviour
         float forwardAvg = (leftDot + rightDot) / 2f;
         float backAvg = (leftBackDot + rightBackDot) / 2f;
 
-        Debug.Log($"[DEBUG] LEFT Open: {leftOpen}, Dot: {leftDot:F2}, Back: {leftBackDot:F2}");
-        Debug.Log($"[DEBUG] RIGHT Open: {rightOpen}, Dot: {rightDot:F2}, Back: {rightBackDot:F2}");
-        Debug.Log($"[DEBUG] AVG Forward: {forwardAvg:F2} | AVG Back: {backAvg:F2}");
+        float distance = Vector3.Distance(left.PalmPosition.ToVector3(), right.PalmPosition.ToVector3());
+        Vector3 center = (left.PalmPosition.ToVector3() + right.PalmPosition.ToVector3()) / 2f;
 
-        if (!currentExercise.hasStarted && leftOpen && rightOpen && backAvg > 0.7f )
+        float maxScale = 0.1f;
+
+        // FASE 1 – costas das mãos
+        if (!waveFirstChargeComplete && leftOpen && rightOpen && backAvg > 0.7f)
         {
-            Debug.Log("[WAVE] Gesto iniciado com palmas voltadas para o jogador.");
-            currentExercise.StartExercise(ExerciseType.WAVE_RELEASE);
+            if (currentExercise.type != ExerciseType.WAVE_RELEASE)
+            {
+                Debug.Log("[WAVE] Iniciando Fase 1 do carregamento (costas das mãos).");
+                currentExercise.StartExercise(ExerciseType.WAVE_RELEASE);
+
+                waveChargeEffect = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                waveChargeEffect.GetComponent<Renderer>().material.color = Color.cyan;
+                waveChargeEffect.transform.localScale = Vector3.one * 0.017f;
+            }
+            else
+            {
+                if (waveChargeEffect?.transform.localScale.x < maxScale)
+                {
+                    float current = waveChargeEffect.transform.localScale.x;
+                    waveChargeEffect.transform.localScale *= (current + 0.001f) / current;
+                }
+                else
+                {
+                    Debug.Log("[WAVE] Fase 1 completa.");
+                    waveFirstChargeComplete = true;
+                    waveChargeEffect.GetComponent<Renderer>().material.color = Color.blue;
+                    waveChargeEffect.transform.localScale = Vector3.one * 0.017f; // reinicia para Fase 2
+                }
+            }
         }
-        else if (currentExercise.hasStarted && leftOpen && rightOpen && forwardAvg > 0.6f)
+
+        // FASE 2 – palmas das mãos
+        else if (waveFirstChargeComplete && !waveSecondChargeComplete && leftOpen && rightOpen && forwardAvg > 0.6f)
         {
-            Debug.Log("[WAVE] Gesto finalizado com costas das mãos voltadas para o jogador.");
+            if (waveChargeEffect?.transform.localScale.x < maxScale)
+            {
+                float current = waveChargeEffect.transform.localScale.x;
+                waveChargeEffect.transform.localScale *= (current + 0.001f) / current;
+            }
+            else
+            {
+                Debug.Log("[WAVE] Fase 2 completa. Pronto para disparar ao juntar as mãos!");
+                waveSecondChargeComplete = true;
+                waveChargeEffect.GetComponent<Renderer>().material.color = Color.green;
+            }
+        }
+
+        // GATILHO FINAL – juntar as mãos
+        else if (waveFirstChargeComplete && waveSecondChargeComplete && distance < 0.1f)
+        {
+            Debug.Log("[WAVE] Liberação de Onda ativada!");
             currentExercise.FinishExercise();
 
             if (wave != null)
@@ -205,8 +241,25 @@ public class ExerciseDetector : MonoBehaviour
                 GameObject w = Instantiate(wave, spawnPosition, Quaternion.identity);
                 Destroy(w, 5f);
             }
+
+            if (waveChargeEffect != null)
+            {
+                Destroy(waveChargeEffect);
+                waveChargeEffect = null;
+            }
+
+            // Reset flags
+            waveFirstChargeComplete = false;
+            waveSecondChargeComplete = false;
+        }
+
+        // Sempre atualizar posição da esfera entre as mãos
+        if (waveChargeEffect != null)
+        {
+            waveChargeEffect.transform.position = center;
         }
     }
+
 
 
     bool IsHandClosed(Hand hand) {
