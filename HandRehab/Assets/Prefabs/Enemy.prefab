@@ -270,6 +270,7 @@ GameObject:
   - component: {fileID: -8166901077475893059}
   - component: {fileID: 249897562}
   - component: {fileID: 7253379139898042258}
+  - component: {fileID: -5255641155112768303}
   m_Layer: 0
   m_Name: Enemy
   m_TagString: Enemy
@@ -482,6 +483,26 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!114 &-5255641155112768303
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3293353941373904007}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 54ef6dd00ff130d40ad29163f884cd55, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  icon: {fileID: 21300000, guid: eec623c29607b1447ac4dc6de3cdda6a, type: 3}
+  customColor: {r: 1, g: 1, b: 1, a: 1}
+  label: 
+  showHeightArrows: 0
+  isCenter: 0
+  isStatic: 0
+  shouldBeVisibleAllTime: 0
+  keepIconRotation: 0
 --- !u!1 &3489827652115472647
 GameObject:
   m_ObjectHideFlags: 0

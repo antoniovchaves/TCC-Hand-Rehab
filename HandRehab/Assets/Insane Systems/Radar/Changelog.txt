@@ -1,0 +1,35 @@
+Version 1.5.3 (current):
+- Minor fix of flickering problem.
+- Code was improved and simplified.
+- Done more optimization: removed FindObjectsOfType from 1 second periodic update, which will be good for levels with big objects count. 
+
+Version 1.5.2 - Feb 25, 2020:
+- Added full support of canvas render mode "Screen Space - Camera".
+- Improved demo and changed some minor settings of radar examples.
+- Fixed and improved some code parts, added new comments to code.
+
+Version 1.5.1 - Sep 20, 2019:
+- A lot of code improvements, refactor and optimization.
+
+Version 1.5 - Apr 23, 2019:
+- Added support hints for radar objects. Now you can add labels to your icons and it will be shown when player hover icon on radar by mouse cursor.
+- Guide extended, added information about Hints.
+
+Version 1.4 - Dec 18, 2018:
+- Added support of "important" icons on radar, which should be always visible on radar.
+- Added Keep Icon Rotation mode for asymmetrical or symbol icons.
+- Fixed some example settings problems.
+- Increased radar scale range.
+- Added changelog file.
+
+Version 1.3 - Nov 28, 2018:
+- Added support of 2D games too!
+- Minor fixes.
+
+We're also working on some other new functionality.
+
+Versions 1.1 - 1.2:
+Changelog is missed, sorry.
+
+Version 1.0 - Apr 24, 2018:
+Initial release.
