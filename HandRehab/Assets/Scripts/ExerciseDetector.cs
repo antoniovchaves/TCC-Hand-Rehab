@@ -1,4 +1,4 @@
-﻿using Leap;
+using Leap;
 using Leap.Unity;
 using System.Collections;
 using System.Collections.Generic;
@@ -49,8 +49,7 @@ public class Exercise
     }
 }
 
-public class ExerciseDetector : MonoBehaviour
-{
+public class ExerciseDetector : MyoDataManager {
     public GameObject playerRig;
     public GameObject leftHandObject;
     public GameObject aim;
@@ -97,42 +96,53 @@ public class ExerciseDetector : MonoBehaviour
         shield.SetActive(false);
         currentExercise = new Exercise();
         availableMagics = new List<ExerciseType>();
-    }
+        
+        StartCoroutine( GetMyoData("http://localhost:8000/arm") );
 
-    void Update()
-    {
-        Hand rightHand = null;
-        Hand leftHand = null;
+        Debug.Log("ExerciseDetectorStarted");
+    }
+  
+    // Update is called once per frame
+    void Update() {
+        Hand supportHand = null;
+        Hand magicHand = null;
         Frame frame = provider.CurrentFrame;
 
-        if (frame.Hands.Capacity > 0)
-        {
-            foreach (Hand h in frame.Hands)
-            {
-                if (h.IsLeft)
-                    leftHand = h;
-                if (h.IsRight)
-                    rightHand = h;
+         if (frame.Hands.Capacity > 0) {
+            foreach (Hand h in frame.Hands) {
+
+                if (h.IsLeft) {
+                    if (arm == "left") {
+                        magicHand = h;
+                    } else if (arm == "right") {
+                        supportHand = h;
+                    }
+                }
+                    
+                if (h.IsRight) {
+                    if (arm == "right") {
+                        magicHand = h;
+                    } else if (arm == "left") {
+                        supportHand = h;
+                    }
+                }
             }
         }
 
-        if (leftHand != null && rightHand != null)
-        {
-            if (currentExercise.hasStarted && !currentExercise.hasFinished)
-            {
-                switch (currentExercise.type)
-                {
+        if(magicHand != null) {
+            if (currentExercise.hasStarted && !currentExercise.hasFinished) {
+                switch (currentExercise.type) {
                     case ExerciseType.FIST:
-                        ProcessFistExercise(leftHand);
+                        ProcessFistExercise(magicHand);
                         break;
                     case ExerciseType.ROTATION:
-                        ProcessRotationExercise(leftHand);
+                        ProcessRotationExercise(magicHand);
                         break;
                     case ExerciseType.WRIST_CURL:
-                        ProcessWristCurlExercise(leftHand);
+                        ProcessWristCurlExercise(magicHand);
                         break;
                     case ExerciseType.FINGER_CURL:
-                        ProcessFingerCurlExercise(leftHand);
+                        ProcessFingerCurlExercise(magicHand);
                         break;
                     case ExerciseType.WAVE_RELEASE:
                         ProcessWaveReleaseExercise(leftHand, rightHand);
@@ -142,12 +152,12 @@ public class ExerciseDetector : MonoBehaviour
             else
             {
                 currentExercise.ResetExercise();
-                ProcessExercises(leftHand, rightHand);
+                ProcessExercises(magicHand);
             }
         }
 
-        if (rightHand != null && currentExercise != null && currentExercise.hasStarted && IsHandClosed(rightHand) && blast == null)
-        {
+        // Cancel magic
+        if(supportHand != null && currentExercise!= null && currentExercise.hasStarted && IsHandClosed(supportHand) && blast == null) {
             CancelMagic();
         }
     }

@@ -5,10 +5,10 @@ using UnityEngine.UI;
 using UnityEngine.Networking;
 using SimpleJSON;
 
-public class Strength : MonoBehaviour
+public class Strength : MyoDataManager
 {
     // public float maxStength;
-    public float strength;
+    //public float strength;
     // public Slider strengthBar;
     // public Image fill;
     // public CharType type;
@@ -16,6 +16,7 @@ public class Strength : MonoBehaviour
     // Start is called before the first frame update
     protected virtual void Start()
     {
+        Debug.Log("Strength ready");
         // Fallback hp
         strength = strength == 0 ? 1 : strength;
         // maxStength = maxStength == 0 ? 1 : maxStength;
@@ -42,47 +43,53 @@ public class Strength : MonoBehaviour
     protected virtual void Update(){}
 
 
-    // Set strength based on recieved value
-    public void setStrength(float newStrength)
-    {
-        strength = newStrength;
-    }
+    // // Set strength based on recieved value
+    // public void setStrength(float newStrength)
+    // {
+    //     strength = newStrength;
+    // }
 
-    public IEnumerator GetMyoData(string address)
-    {
-        // Request GET from server
-        UnityWebRequest www = UnityWebRequest.Get(address);
-        yield return www.SendWebRequest();
+    // public IEnumerator GetMyoData(string address)
+    // {
+    //     // Request GET from server
+    //     UnityWebRequest www = UnityWebRequest.Get(address);
+    //     yield return www.SendWebRequest();
 
 
-        // Verify if response has an error
-        if (www.isHttpError)
-            Debug.LogError(www.error);
+    //     // Verify if response has an error
+    //     if (www.isHttpError)
+    //         Debug.LogError(www.error);
 
-        // Proccess Response from text to a JSON
-        else ProccessServerResponse(www.downloadHandler.text);
-    }
+    //     // Proccess Response from text to a JSON
+    //     else ProccessServerResponse(www.downloadHandler.text);
+    // }
 
-    void ProccessServerResponse(string rawResponse)
-    {
-        // That text, is actually a JSON info, so we need to parse that into something we can navigate.
-        JSONNode node = JSON.Parse(rawResponse);
+    // void ProccessServerResponse(string rawResponse)
+    // {
+    //     // That text, is actually a JSON info, so we need to parse that into something we can navigate.
+    //     JSONNode node = JSON.Parse(rawResponse);
 
-        // Changes current strength value in case the server response was successfull
-        if (node != null && 
-            node["meta"] != null && 
-            node["meta"]["success"] == true) 
-        {
-            // Verify if data object is null and if strength's data is lower than 3. 
-            // The reason behind this is to avoid interfearing values where makes the strength too powerfull
-            if (node["data"] != null && 
-                node["data"]["strength"] != null && 
-                node["data"]["strength"] < 3)
-            {
-                setStrength(node["data"]["strength"]);
-            }
-        }
-    }
+    //     // Changes current strength value in case the server response was successfull
+    //     if (node != null && 
+    //         node["meta"] != null && 
+    //         node["meta"]["success"] == true) 
+    //     {
+    //         // Verify if data object is null and if strength's data is lower than 3. 
+    //         // The reason behind this is to avoid interfearing values where makes the strength too powerfull
+    //         if (node["data"] != null && 
+    //             node["data"]["strength"] != null && 
+    //             node["data"]["strength"] < 3)
+    //         {
+    //             setStrength(node["data"]["strength"]);
+    //         }
+
+    //         if (node["data"] != null && 
+    //             node["data"]["arm"] != null)
+    //         {
+    //             Debug.Log("Arm: " + node["data"]["arm"]);
+    //         }
+    //     }
+    // }
 
 
     /*
