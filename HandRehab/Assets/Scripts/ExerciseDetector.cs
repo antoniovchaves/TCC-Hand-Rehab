@@ -106,23 +106,31 @@ public class ExerciseDetector : MyoDataManager {
     void Update() {
         Hand supportHand = null;
         Hand magicHand = null;
+        Hand leftHand = null;
+        Hand rightHand = null;
         Frame frame = provider.CurrentFrame;
 
          if (frame.Hands.Capacity > 0) {
             foreach (Hand h in frame.Hands) {
 
                 if (h.IsLeft) {
-                    if (arm == "left") {
+                    if (arm == "left")
+                    {
                         magicHand = h;
-                    } else if (arm == "right") {
+                    }
+                    else if (arm == "right")
+                    {
                         supportHand = h;
                     }
                 }
                     
                 if (h.IsRight) {
-                    if (arm == "right") {
+                    if (arm == "right")
+                    {
                         magicHand = h;
-                    } else if (arm == "left") {
+                    }
+                    else if (arm == "left")
+                    {
                         supportHand = h;
                     }
                 }
@@ -145,14 +153,14 @@ public class ExerciseDetector : MyoDataManager {
                         ProcessFingerCurlExercise(magicHand);
                         break;
                     case ExerciseType.WAVE_RELEASE:
-                        ProcessWaveReleaseExercise(leftHand, rightHand);
+                        ProcessWaveReleaseExercise(magicHand, supportHand);
                         break;
                 }
             }
             else
             {
                 currentExercise.ResetExercise();
-                ProcessExercises(magicHand);
+                ProcessExercises(magicHand, supportHand);
             }
         }
 
@@ -177,29 +185,29 @@ public class ExerciseDetector : MyoDataManager {
         }
     }
 
-    void ProcessWaveReleaseExercise(Hand left, Hand right)
+    void ProcessWaveReleaseExercise(Hand magicHand, Hand supportHand)
     {
-        bool leftOpen = IsHandOpened(left);
-        bool rightOpen = IsHandOpened(right);
+        bool magicHandOpen = IsHandOpened(magicHand);
+        bool supportHandOpen = IsHandOpened(supportHand);
 
-        Vector3 leftDir = left.PalmNormal.ToVector3();
-        Vector3 rightDir = right.PalmNormal.ToVector3();
+        Vector3 magicHandDir = magicHand.PalmNormal.ToVector3();
+        Vector3 supportHandDir = supportHand.PalmNormal.ToVector3();
 
-        float leftDot = Vector3.Dot(leftDir, camera.transform.forward);
-        float rightDot = Vector3.Dot(rightDir, camera.transform.forward);
-        float leftBackDot = Vector3.Dot(leftDir, -camera.transform.forward);
-        float rightBackDot = Vector3.Dot(rightDir, -camera.transform.forward);
+        float magicHandDot = Vector3.Dot(magicHandDir, camera.transform.forward);
+        float supportHandDot = Vector3.Dot(supportHandDir, camera.transform.forward);
+        float magicHandBackDot = Vector3.Dot(magicHandDir, -camera.transform.forward);
+        float supportHandBackDot = Vector3.Dot(supportHandDir, -camera.transform.forward);
 
-        float forwardAvg = (leftDot + rightDot) / 2f;
-        float backAvg = (leftBackDot + rightBackDot) / 2f;
+        float forwardAvg = (magicHandDot + supportHandDot) / 2f;
+        float backAvg = (magicHandBackDot + supportHandBackDot) / 2f;
 
-        float distance = Vector3.Distance(left.PalmPosition.ToVector3(), right.PalmPosition.ToVector3());
-        Vector3 center = (left.PalmPosition.ToVector3() + right.PalmPosition.ToVector3()) / 2f;
+        float distance = Vector3.Distance(magicHand.PalmPosition.ToVector3(), supportHand.PalmPosition.ToVector3());
+        Vector3 center = (magicHand.PalmPosition.ToVector3() + supportHand.PalmPosition.ToVector3()) / 2f;
 
         float maxScale = 0.1f;
 
         // FASE 1 – costas das mãos
-        if (!waveFirstChargeComplete && leftOpen && rightOpen && backAvg > 0.7f)
+        if (!waveFirstChargeComplete && magicHandOpen && supportHandOpen && backAvg > 0.7f)
         {
             if (currentExercise.type != ExerciseType.WAVE_RELEASE)
             {
@@ -229,7 +237,7 @@ public class ExerciseDetector : MyoDataManager {
         }
 
         // FASE 2 – palmas das mãos
-        else if (waveFirstChargeComplete && !waveSecondChargeComplete && leftOpen && rightOpen && forwardAvg > 0.6f)
+        else if (waveFirstChargeComplete && !waveSecondChargeComplete && magicHandOpen && supportHandOpen && forwardAvg > 0.6f)
         {
             if (waveChargeEffect?.transform.localScale.x < maxScale)
             {
@@ -446,13 +454,13 @@ public class ExerciseDetector : MyoDataManager {
         }
     }
 
-    void ProcessExercises(Hand left, Hand right)
+    void ProcessExercises(Hand magicHand, Hand supportHand)
     {
-        if (availableMagics.Contains(ExerciseType.FIST)) ProcessFistExercise(left);
-        if (!currentExercise.hasStarted && availableMagics.Contains(ExerciseType.ROTATION)) ProcessRotationExercise(left);
-        if (!currentExercise.hasStarted && availableMagics.Contains(ExerciseType.WRIST_CURL)) ProcessWristCurlExercise(left);
-        if (!currentExercise.hasStarted && availableMagics.Contains(ExerciseType.FINGER_CURL)) ProcessFingerCurlExercise(left);
-        if (!currentExercise.hasStarted && availableMagics.Contains(ExerciseType.WAVE_RELEASE)) ProcessWaveReleaseExercise(left, right);
+        if (availableMagics.Contains(ExerciseType.FIST)) ProcessFistExercise(magicHand);
+        if (!currentExercise.hasStarted && availableMagics.Contains(ExerciseType.ROTATION)) ProcessRotationExercise(magicHand);
+        if (!currentExercise.hasStarted && availableMagics.Contains(ExerciseType.WRIST_CURL)) ProcessWristCurlExercise(magicHand);
+        if (!currentExercise.hasStarted && availableMagics.Contains(ExerciseType.FINGER_CURL)) ProcessFingerCurlExercise(magicHand);
+        if (!currentExercise.hasStarted && availableMagics.Contains(ExerciseType.WAVE_RELEASE)) ProcessWaveReleaseExercise(magicHand, supportHand);
 
         Debug.Log(currentExercise.type.ToString());
     }
