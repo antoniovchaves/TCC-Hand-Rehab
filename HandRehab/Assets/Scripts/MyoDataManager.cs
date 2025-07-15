@@ -19,12 +19,12 @@ public class MyoDataManager : MonoBehaviour
     // Update is called once per frame
     protected virtual void Update(){}
 
-    public void setStrength(float newStrength)
+    public void SetStrength(float newStrength)
     {
         strength = newStrength;
     }
 
-    public void setArm(string newArm)
+    public void SetArm(string newArm)
     {
         arm = newArm;
     }
@@ -52,13 +52,13 @@ public class MyoDataManager : MonoBehaviour
                 if (response["strength"] != null && 
                     response["strength"] < 3)
                 {
-                    setStrength(response["strength"]);
+                    SetStrength(response["strength"]);
                 }
 
                 if (response["arm"] != null)
                 {
                     Debug.Log("Arm: " + response["arm"]);
-                    setArm(response["arm"]);
+                    SetArm(response["arm"]);
                 }
             }            
         } 

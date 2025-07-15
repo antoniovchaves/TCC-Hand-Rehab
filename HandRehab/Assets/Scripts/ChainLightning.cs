@@ -1,104 +1,112 @@
-﻿using Leap;
+﻿// ChainLightning.cs
+using Leap;
 using Leap.Unity;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.Networking;
-using SimpleJSON;
 
-public class ChainLightning : Strength {
-    List<GameObject> targets;
-    public GameObject lightningBolt;
-    public float range;
-    public float damage;
+public class ChainLightning : MonoBehaviour
+{
+    [Header("Referências")]
+    private MyoDataManager myo;
+    private List<GameObject> targets;
 
-    // Start is called before the first frame update
-    void Start() {
-        targets = new List<GameObject>(GameObject.FindGameObjectsWithTag("Enemy"));
-        range = range == 0 ? 10 : range;
-        damage = damage == 0 ? 10 : damage;
+    [Header("Configuração do Efeito")]
+    public GameObject lightningBoltPrefab;
+    public float range = 10f;
+    public float baseDamage = 10f;
+    [Tooltip("URL de onde buscar o valor de strength")]
+    public string dataAddress = "http://localhost:8000/strength";
+    [Tooltip("Número máximo de inimigos atingidos em cadeia")]
+    public int maxChains = 3;
 
-        StartCoroutine( GetMyoData("http://localhost:8000/strength") );
+    void Start()
+    {
+        // Busca o gerenciador central de strength
+        myo = FindObjectOfType<MyoDataManager>();
+        if (myo == null)
+        {
+            Debug.LogError("ChainLightning: MyoDataManager não encontrado na cena!");
+            return;
+        }
+        // Puxa o valor inicial
+        StartCoroutine(myo.GetMyoData(dataAddress));
+
+        // Carrega todos os inimigos
+        targets = GameObject.FindGameObjectsWithTag("Enemy").ToList();
     }
 
-    // Update is called once per frame
-    void Update() {}
+    /// <summary>
+    /// Chama este método passando a mão detectada para disparar o Chain Lightning.
+    /// </summary>
+    public void LightItUp(Hand hand)
+    {
+        if (myo == null) return;
 
+        float strength = myo.strength;
+        Vector3 startPos = hand.PalmPosition.ToVector3();
+        Vector3 palmNormal = hand.PalmNormal.ToVector3();
 
-    public void LightItUp(Hand hand) {
-        GameObject firstEnemy = FindFirstEnemy(hand, range);
-        Debug.LogWarning("Damage dealt on enemy: " + (damage*strength).ToString());
-        if (firstEnemy != null) {
-            GameObject nextEnemy = firstEnemy;
-            Vector3 currentPosition;
-            Vector3 nextPosition = hand.PalmPosition.ToVector3();
+        // Cria uma cópia da lista para não remover da original
+        List<GameObject> available = new List<GameObject>(targets);
 
-            List<Vector3> positions = new List<Vector3> {
-                nextPosition
-            };
-
-            // Finding enemies in chain
-            while (nextEnemy != null) {
-                nextEnemy.GetComponent<Enemy>().Hit(damage * strength, Element.LIGHTNING);
-                currentPosition = nextPosition;
-                nextPosition = nextEnemy.transform.position;
-                positions.Add(nextPosition);
-                nextEnemy = FindNextEnemy(nextEnemy.transform.position, range);
-            }
-
-            // Drawing lightning
-            for (int i = 0; i < positions.Count - 1; i++) {
-                GameObject lightning = GameObject.Instantiate(lightningBolt);
-                var lightningPositions = lightning.GetComponentsInChildren<Transform>();
-                lightningPositions[1].position = positions[i];
-                lightningPositions[2].position = positions[i + 1];
-                Destroy(lightning, 3);
-            }
-        }
-        else { // miss, but cast lightning anyway
-            GameObject lightning = GameObject.Instantiate(lightningBolt);
-            var lightningPositions = lightning.GetComponentsInChildren<Transform>();
-            lightningPositions[1].position = hand.PalmPosition.ToVector3();
-            lightningPositions[2].position = hand.PalmPosition.ToVector3() + hand.PalmNormal.ToVector3() * 10;
-            Destroy(lightning, 3);
-        }
-
+        HitChain(startPos, palmNormal, available, strength, maxChains);
     }
 
-    GameObject FindNextEnemy(Vector3 startPosition, float range) {
-        float squaredRange = range * range;
-        GameObject closestEnemy = null;
-        if (targets.Count > 0) {
-            closestEnemy = targets.Where(t => (t.transform.position - startPosition).sqrMagnitude < squaredRange)?
-                                  .OrderBy(t => (t.transform.position - startPosition).sqrMagnitude)?
-                                  .First();
-        }
-        if (closestEnemy != null) {
-            targets.Remove(closestEnemy);
+    private void HitChain(Vector3 fromPos, Vector3 direction, List<GameObject> available, float strength, int remaining)
+    {
+        if (remaining <= 0 || available.Count == 0) return;
+
+        // Encontra o inimigo mais próximo dentro de range e dentro de 30° de ângulo
+        GameObject closest = FindClosestEnemy(fromPos, direction, available);
+        if (closest == null) return;
+
+        // Instancia o raio
+        GameObject bolt = Instantiate(lightningBoltPrefab, fromPos, Quaternion.identity);
+        var lr = bolt.GetComponent<LineRenderer>();
+        if (lr != null)
+        {
+            lr.positionCount = 2;
+            lr.SetPosition(0, fromPos);
+            lr.SetPosition(1, closest.transform.position);
         }
 
-        return closestEnemy;
+        // Aplica dano
+        var enemy = closest.GetComponent<Enemy>();
+        if (enemy != null)
+        {
+            float dmg = baseDamage * strength;
+            enemy.hp -= dmg;
+        }
+
+        // Prepara próxima iteração
+        available.Remove(closest);
+        HitChain(closest.transform.position, direction, available, strength, remaining - 1);
     }
 
-    GameObject FindFirstEnemy(Hand hand, float range) {
-        float squaredRange = range * range;
-        Vector3 startPosition = hand.PalmPosition.ToVector3();
-        GameObject closestEnemy = null;
-        if (targets.Count > 0) {
-            var closeEnemies = targets.Where(t => (t.transform.position - startPosition).sqrMagnitude < squaredRange).ToList();
-            if (closeEnemies.Count > 0) {
-                var enemiesInFrontOfMe = closeEnemies.Where(t => Vector3.Angle(t.transform.position - startPosition, hand.PalmNormal.ToVector3()) < 30).ToList();
-                if (enemiesInFrontOfMe.Count > 0) {
-                    closestEnemy =enemiesInFrontOfMe.OrderBy(t => (t.transform.position - startPosition).sqrMagnitude).First();
-                }
+    private GameObject FindClosestEnemy(Vector3 fromPos, Vector3 direction, List<GameObject> candidates)
+    {
+        GameObject best = null;
+        float bestDist = float.MaxValue;
+
+        foreach (var go in candidates)
+        {
+            float dist = Vector3.Distance(fromPos, go.transform.position);
+            if (dist > range) continue;
+
+            // filtra pelo ângulo com a palma da mão
+            Vector3 toEnemy = (go.transform.position - fromPos).normalized;
+            float angle = Vector3.Angle(direction, toEnemy);
+            if (angle > 30f) continue;
+
+            if (dist < bestDist)
+            {
+                bestDist = dist;
+                best = go;
             }
         }
-        if (closestEnemy != null) {
-            targets.Remove(closestEnemy);
-        }
 
-        return closestEnemy;
+        return best;
     }
 }

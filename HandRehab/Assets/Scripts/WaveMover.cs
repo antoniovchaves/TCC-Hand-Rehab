@@ -1,30 +1,41 @@
-﻿using UnityEngine;
+﻿// WaveMover.cs
 using System.Collections;
-using UnityEngine.Networking;
-using SimpleJSON;
+using UnityEngine;
 
-public class WaveMover : Strength
+public class WaveMover : MonoBehaviour
 {
+    [Header("Referências")]
+    private MyoDataManager myo;
+
+    [Header("Configuração da Onda")]
     public float speed = 5f;
     public float lifetime = 5f;
     public bool isRoot = true;
     public float waveHP = 100f;
     public float damagePerHit = 50f;
     public float knockbackForce = 5f;
+    [Tooltip("Prefab usado para gerar sub-ondas")]
+    public GameObject wavePrefab;
+    [Tooltip("URL de onde buscar o valor de strength")]
+    public string dataAddress = "http://localhost:8000/passive";
 
-    void Start()
+     private IEnumerator Start()
     {
-        Debug.Log($"[WAVE] Iniciando {gameObject.name} | Root: {isRoot}");
-
-        StartCoroutine(GetMyoData("http://localhost:8000/strength"));
-
-        if (GameObject.FindGameObjectsWithTag("Magic").Length > 100)
+        // 1) Busca o gerenciador central de strength
+        myo = FindObjectOfType<MyoDataManager>();
+        if (myo == null)
         {
-            Debug.LogWarning("[WAVE] Limite de 100 ondas atingido — destruindo esta instância.");
-            Destroy(gameObject);
-            return;
+            Debug.LogError("WaveMover: MyoDataManager não encontrado na cena!");
+            yield break;
         }
 
+        // 2) Espera a atualização do valor de strength
+        yield return StartCoroutine(myo.GetMyoData(dataAddress));
+
+        // 3) Define o waveHP exatamente igual ao strength recebido
+        waveHP = myo.strength;
+
+        // 4) Lógica de root vs. sub-ondas
         if (isRoot)
         {
             SpawnWavesInAllDirections();
@@ -36,75 +47,59 @@ public class WaveMover : Strength
         }
     }
 
-   
-    void SpawnWavesInAllDirections()
+    private void SpawnWavesInAllDirections()
     {
-        Debug.Log("[WAVE] Criando ondas em 4 direções");
-
-        Vector3[] directions = new Vector3[] {
-            Vector3.forward,
-            Vector3.back,
-            Vector3.left,
-            Vector3.right
-        };
-
-        foreach (Vector3 dir in directions)
+        const int rayCount = 8;
+        for (int i = 0; i < rayCount; i++)
         {
-            GameObject wave = Instantiate(gameObject, transform.position, Quaternion.LookRotation(dir));
-            WaveMover mover = wave.GetComponent<WaveMover>();
-            mover.isRoot = false;
-            mover.waveHP = waveHP;
-            wave.tag = "Magic";
-            Debug.Log($"[WAVE] Criada instância na direção: {dir}");
+            float angle = i * Mathf.PI * 2f / rayCount;
+            Vector3 dir = new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle));
+            var wave = Instantiate(wavePrefab, transform.position, Quaternion.LookRotation(dir));
+            var mover = wave.GetComponent<WaveMover>();
+            mover?.isRoot = false;
         }
     }
 
+
     void Update()
     {
+        // Move apenas as ondas filhas
         if (!isRoot)
         {
             transform.Translate(Vector3.forward * speed * Time.deltaTime);
-            Debug.Log($"[WAVE] Movendo {gameObject.name}");
         }
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!isRoot && other.CompareTag("Enemy"))
+        if (isRoot) return;
+        if (!other.CompareTag("Enemy")) return;
+
+        var enemy = other.GetComponent<Enemy>();
+        if (enemy == null) return;
+
+        // 1) Consome da força da onda o HP total do inimigo
+        waveHP -= enemy.hp;
+
+        if (waveHP > 0f)
         {
-            Debug.Log("[WAVE] Inimigo atingido pela onda!");
-
-            Enemy enemy = other.GetComponent<Enemy>();
-            if (enemy != null)
+            // 2a) Se ainda sobrou força, mata o inimigo e segue adiante
+            enemy.hp = 0f;
+            Destroy(enemy.gameObject);
+            // (não aplica knockback aqui)
+        }
+        else
+        {
+            // 2b) Se a onda se esgotou, aplica o knockback ao inimigo
+            var rb = enemy.GetComponent<Rigidbody>();
+            if (rb != null)
             {
-                float actualDamage = Mathf.Min(damagePerHit, enemy.hp);
-                enemy.hp -= actualDamage;
-                waveHP -= actualDamage;
-
-                Debug.Log($"[WAVE] Dano aplicado: {actualDamage}. HP restante da onda: {waveHP}. HP do inimigo: {enemy.hp}");
-
-                // Rebote
-                Rigidbody enemyRb = other.GetComponent<Rigidbody>();
-                if (enemyRb != null)
-                {
-                    Vector3 knockbackDir = (other.transform.position - transform.position).normalized;
-                    enemyRb.AddForce(knockbackDir * knockbackForce, ForceMode.Impulse);
-                    Debug.Log("[WAVE] Rebote aplicado no inimigo.");
-                }
-
-                if (enemy.hp <= 0)
-                {
-                    Debug.Log("[WAVE] Inimigo destruído.");
-                    Destroy(other.gameObject);
-                }
-
-                if (waveHP <= 0)
-                {
-                    Debug.Log("[WAVE] Onda destruída após atingir inimigos.");
-                    Destroy(gameObject);
-                }
+                Vector3 dir = (enemy.transform.position - transform.position).normalized;
+                rb.AddForce(dir * knockbackForce * myo.strength, ForceMode.Impulse);
             }
+            // e então destrói o inimigo e a própria onda
+            Destroy(enemy.gameObject);
+            Destroy(gameObject);
         }
     }
 }
-
