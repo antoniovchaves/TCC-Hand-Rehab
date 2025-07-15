@@ -104,61 +104,74 @@ public class ExerciseDetector : MyoDataManager {
   
     // Update is called once per frame
     void Update() {
-        Hand supportHand = null;
-        Hand magicHand = null;
+        // Obtém o último frame do Leap Provider
         Frame frame = provider.CurrentFrame;
 
-         if (frame.Hands.Capacity > 0) {
+        // Se houver pelo menos uma mão detectada
+        if (frame.Hands.Count > 0) {
+            Hand leftHand = null, rightHand = null;
+            Hand magicHand = null, supportHand = null;
+
+            // Separa mãos esquerda e direita e tenta atribuir magicHand/supportHand conforme o valor de `arm`
             foreach (Hand h in frame.Hands) {
-
                 if (h.IsLeft) {
-                    if (arm == "left") {
+                    leftHand = h;
+                    if (arm == "left")
                         magicHand = h;
-                    } else if (arm == "right") {
+                    else if (arm == "right")
                         supportHand = h;
-                    }
                 }
-                    
                 if (h.IsRight) {
-                    if (arm == "right") {
+                    rightHand = h;
+                    if (arm == "right")
                         magicHand = h;
-                    } else if (arm == "left") {
+                    else if (arm == "left")
                         supportHand = h;
+                }
+            }
+
+            // Fallback caso o Myo não responda ou não atribua magic/support:
+            if (string.IsNullOrEmpty(arm) || (magicHand == null && supportHand == null)) {
+                magicHand   = leftHand;
+                supportHand = rightHand;
+            }
+
+            // Se houver uma mão válida para lançar magia
+            if (magicHand != null) {
+                if (currentExercise.hasStarted && !currentExercise.hasFinished) {
+                    // Durante um exercício em andamento, processa o tipo correto
+                    switch (currentExercise.type) {
+                        case ExerciseType.FIST:
+                            ProcessFistExercise(magicHand);
+                            break;
+                        case ExerciseType.ROTATION:
+                            ProcessRotationExercise(magicHand);
+                            break;
+                        case ExerciseType.WRIST_CURL:
+                            ProcessWristCurlExercise(magicHand);
+                            break;
+                        case ExerciseType.FINGER_CURL:
+                            ProcessFingerCurlExercise(magicHand);
+                            break;
+                        case ExerciseType.WAVE_RELEASE:
+                            ProcessWaveReleaseExercise(leftHand, rightHand);
+                            break;
                     }
+                } else {
+                    // Se não estiver em exercício, reseta e detecta novos
+                    currentExercise.ResetExercise();
+                    ProcessExercises(leftHand, rightHand);
                 }
             }
-        }
 
-        if(magicHand != null) {
-            if (currentExercise.hasStarted && !currentExercise.hasFinished) {
-                switch (currentExercise.type) {
-                    case ExerciseType.FIST:
-                        ProcessFistExercise(magicHand);
-                        break;
-                    case ExerciseType.ROTATION:
-                        ProcessRotationExercise(magicHand);
-                        break;
-                    case ExerciseType.WRIST_CURL:
-                        ProcessWristCurlExercise(magicHand);
-                        break;
-                    case ExerciseType.FINGER_CURL:
-                        ProcessFingerCurlExercise(magicHand);
-                        break;
-                    case ExerciseType.WAVE_RELEASE:
-                        ProcessWaveReleaseExercise(leftHand, rightHand);
-                        break;
-                }
+            // Se mão de suporte estiver fechada durante um exercício, cancela a magia
+            if (supportHand != null
+                && currentExercise != null
+                && currentExercise.hasStarted
+                && IsHandClosed(supportHand)
+                && blast == null) {
+                CancelMagic();
             }
-            else
-            {
-                currentExercise.ResetExercise();
-                ProcessExercises(magicHand);
-            }
-        }
-
-        // Cancel magic
-        if(supportHand != null && currentExercise!= null && currentExercise.hasStarted && IsHandClosed(supportHand) && blast == null) {
-            CancelMagic();
         }
     }
 
